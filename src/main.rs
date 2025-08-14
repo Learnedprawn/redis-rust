@@ -5,6 +5,8 @@ use std::{
     thread::spawn,
 };
 
+const CR_LEN: usize = 2;
+const LF_LEN: usize = 2;
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
@@ -18,13 +20,20 @@ fn main() {
             Ok(mut stream) => {
                 println!("accepted new connection");
                 spawn(move || {
-                    let mut buf = [0; 512];
+                    let mut buf = [0; 64];
                     loop {
                         let bytes_read = stream.read(&mut buf).unwrap();
                         if bytes_read == 0 {
                             return;
                         }
-                        stream.write_all(b"+PONG\r\n").unwrap();
+                        let echo_command = parse_command_array(&mut buf);
+                        match echo_command {
+                            RedisCommand::PING => stream.write_all(b"+PONG\r\n").unwrap(),
+                            RedisCommand::ECHO { data } => {
+                                let output = format!("+{:?}\r\n", data);
+                                stream.write_all(output.as_bytes()).unwrap();
+                            }
+                        }
                     }
                 });
             }
@@ -33,4 +42,41 @@ fn main() {
             }
         }
     }
+}
+pub enum RedisCommand {
+    PING,
+    ECHO { data: String },
+}
+pub fn parse_command_array(buf: &mut [u8; 64]) -> RedisCommand {
+    let mut index = 0;
+    assert!(buf[index] == b'*');
+    index += 1; //1
+    let array_length = buf[index];
+    index += 1; //2
+    index += CR_LEN + LF_LEN; //6
+    let bulk_string_symbol = buf[index];
+    assert!(bulk_string_symbol == b'$');
+    index += 1; //7
+    let command_length = (buf[index] - b'0') as usize;
+    index += 1; //8
+    index += CR_LEN + LF_LEN; //12
+    let command_string = String::from_utf8(buf[index..(index + command_length)].to_vec()).unwrap();
+    index += command_length; //16 if ECHO is the command
+    index += CR_LEN + LF_LEN; //20
+    let bulk_string_symbol = buf[index];
+    assert!(bulk_string_symbol == b'$');
+    index += 1; //21
+    let command_argument_length = (buf[index] - b'0') as usize;
+    index += 1; //8
+    index += CR_LEN + LF_LEN; //12
+    let command_argument_string =
+        String::from_utf8(buf[index..(index + command_argument_length)].to_vec()).unwrap();
+    println!("{:?}", command_argument_string);
+    assert!(command_argument_string == "hey");
+    if command_string == "ECHO" {
+        return RedisCommand::ECHO {
+            data: command_argument_string,
+        };
+    }
+    RedisCommand::PING
 }
