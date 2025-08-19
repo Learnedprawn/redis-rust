@@ -59,7 +59,7 @@ pub fn parse_command_array(buf: &mut [u8; 64]) -> RedisCommand {
     let mut index = 0;
     assert!(buf[index] == b'*');
     index += 1; //1
-    let array_length = buf[index];
+    let array_length = (buf[index] - b'0') as usize;
     if array_length == 1 {
         return RedisCommand::PING;
     }
