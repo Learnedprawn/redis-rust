@@ -138,3 +138,10 @@ fn simple_string(buf: &Vec<u8>, pos: usize) -> RedisResult {
         None => Ok(None),
     }
 }
+
+fn error(buf: &Vec<u8>, pos: usize) -> RedisResult {
+    match word(buf, pos) {
+        Some((pos, word)) => Ok(Some((pos, RedisBufSplit::Error(word)))),
+        None => Ok(None),
+    }
+}
