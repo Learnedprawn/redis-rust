@@ -34,7 +34,10 @@ fn main() {
                         match echo_command {
                             RedisCommand::PING => stream.write_all(b"+PONG\r\n").unwrap(),
                             RedisCommand::ECHO { data } => {
-                                let output = format!("+{:?}\r\n", data);
+                                let response_string = &data;
+                                let response_string_len = &data.len();
+                                let output =
+                                    format!("${}\r\n{}\r\n", response_string_len, response_string);
                                 stream.write_all(output.as_bytes()).unwrap();
                             }
                         }
@@ -77,18 +80,11 @@ pub fn parse_command_array(buf: &mut [u8; 64]) -> RedisCommand {
     let command_argument_string =
         String::from_utf8(buf[index..(index + command_argument_length)].to_vec()).unwrap();
     println!("{:?}", command_argument_string);
-    assert!(command_argument_string == "hey");
+    // assert!(command_argument_string == "hey");
     if command_string == "ECHO" {
         return RedisCommand::ECHO {
             data: command_argument_string,
         };
     }
-    assert!(buf[0] == b'*');
-    let array_length = buf[1];
-    let bulk_string_symbol = buf[6];
-    assert!(bulk_string_symbol == b'$');
-    let command_length = (buf[7] - b'0') as usize;
-    let command_string = String::from_utf8(buf[12..(12 + command_length)].to_vec()).unwrap();
-    println!("{:?}", command_string);
     RedisCommand::PING
 }
