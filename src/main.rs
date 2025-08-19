@@ -5,8 +5,8 @@ use std::{
     thread::spawn,
 };
 
-const CR_LEN: usize = 2;
-const LF_LEN: usize = 2;
+const CR_LEN: usize = 1;
+const LF_LEN: usize = 1;
 const CR: u8 = b'\r';
 const LD: u8 = b'\n';
 
