@@ -60,6 +60,9 @@ pub fn parse_command_array(buf: &mut [u8; 64]) -> RedisCommand {
     assert!(buf[index] == b'*');
     index += 1; //1
     let array_length = buf[index];
+    if array_length == 1 {
+        return RedisCommand::PING;
+    }
     index += 1; //2
     index += CR_LEN + LF_LEN; //6
     let bulk_string_symbol = buf[index];
