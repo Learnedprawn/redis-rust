@@ -5,10 +5,28 @@ use std::{
     thread::spawn,
 };
 
+use bytes::Bytes;
+
 const CR_LEN: usize = 1;
 const LF_LEN: usize = 1;
 const CR: u8 = b'\r';
 const LD: u8 = b'\n';
+
+pub enum RedisValue {
+    String(Bytes),
+    Error(Bytes),
+    Int(i64),
+    Array(Vec<RedisValue>),
+}
+
+pub enum RESPError {
+    UnexpectedEnd,
+    UnknownStartingByte,
+    IOError(std::io::Error),
+    IntParseFailure,
+    BadBulkStringSize(i64),
+    BadArraySize(i64),
+}
 
 fn main() {
     println!("Logs from your program will appear here!");
