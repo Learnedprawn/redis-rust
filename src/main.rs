@@ -5,12 +5,14 @@ use std::{
     thread::spawn,
 };
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 
 const CR_LEN: usize = 1;
 const LF_LEN: usize = 1;
 const CR: u8 = b'\r';
 const LD: u8 = b'\n';
+
+type RedisResult = Result<Option<(usize, RedisBufSplit)>, RESPError>;
 
 pub enum RedisValue {
     String(Bytes),
@@ -27,7 +29,16 @@ pub enum RESPError {
     BadBulkStringSize(i64),
     BadArraySize(i64),
 }
+struct BufSplit(usize, usize);
 
+enum RedisBufSplit {
+    String(BufSplit),
+    Error(BufSplit),
+    Int(i64),
+    Array(Vec<RedisBufSplit>),
+    NullArray,
+    NullBulkString,
+}
 fn main() {
     println!("Logs from your program will appear here!");
 
@@ -44,7 +55,7 @@ fn main() {
                     loop {
                         let bytes_read = stream.read(&mut buf).unwrap();
                         println!("Number of Bytes: {} \n Data: {:?}", bytes_read, buf);
-                        parse_command_array(&mut buf);
+                        parse_command_array(&mut buf[..bytes_read]);
                         if bytes_read == 0 {
                             return;
                         }
@@ -73,7 +84,7 @@ pub enum RedisCommand {
     PING,
     ECHO { data: String },
 }
-pub fn parse_command_array(buf: &mut [u8; 64]) -> RedisCommand {
+pub fn parse_command_array(buf: &mut [u8]) -> RedisCommand {
     let mut index = 0;
     assert!(buf[index] == b'*');
     index += 1; //1
@@ -108,4 +119,24 @@ pub fn parse_command_array(buf: &mut [u8; 64]) -> RedisCommand {
         };
     }
     RedisCommand::PING
+}
+
+fn word(buf: &Vec<u8>, pos: usize) -> Option<(usize, BufSplit)> {
+    if buf.len() <= pos {
+        return None;
+    }
+    memchr::memchr(b'\r', &buf[pos..]).and_then(|end| {
+        if end + 1 < buf.len() {
+            Some((pos + end + 2, BufSplit(pos, pos + end)))
+        } else {
+            None
+        }
+    })
+}
+
+fn simple_string(buf: &Vec<u8>, pos: usize) -> RedisResult {
+    match word(buf, pos) {
+        Some((pos, word)) => Ok(Some((pos, RedisBufSplit::String(word)))),
+        None => Ok(None),
+    }
 }
