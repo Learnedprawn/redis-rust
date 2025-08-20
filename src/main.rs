@@ -172,3 +172,20 @@ fn int(buf: &Vec<u8>, pos: usize) -> Result<Option<(usize, i64)>, RESPError> {
 fn resp_int(buf: &Vec<u8>, pos: usize) -> RedisResult {
     Ok(int(buf, pos)?.map(|(pos, int)| (pos, RedisBufSplit::Int(int))))
 }
+
+fn bulk_string(buf: &Vec<u8>, pos: usize) -> RedisResult {
+    match int(buf, pos)? {
+        Some((pos, -1)) => Ok(Some((pos, RedisBufSplit::NullBulkString))),
+        Some((pos, size)) if size >= 0 => {
+            let total_size = pos + size as usize;
+            if buf.len() < total_size + 2 {
+                Ok(None)
+            } else {
+                let bulk_string = RedisBufSplit::String(BufSplit(pos, total_size));
+                Ok(Some((total_size + 2, bulk_string)))
+            }
+        }
+        Some((pos, bad_size)) => Err(RESPError::BadBulkStringSize(bad_size)),
+        None => Ok(None),
+    }
+}
