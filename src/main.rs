@@ -14,11 +14,13 @@ const LD: u8 = b'\n';
 
 type RedisResult = Result<Option<(usize, RedisBufSplit)>, RESPError>;
 
-pub enum RedisValue {
+pub enum RedisValueRef {
     String(Bytes),
     Error(Bytes),
     Int(i64),
-    Array(Vec<RedisValue>),
+    Array(Vec<RedisValueRef>),
+    NullArray,
+    NullBulkString,
 }
 
 pub enum RESPError {
@@ -30,6 +32,12 @@ pub enum RESPError {
     BadArraySize(i64),
 }
 struct BufSplit(usize, usize);
+
+impl BufSplit {
+    fn as_slice<'a>(&self, buf: &'a Vec<u8>) -> &'a [u8] {
+        &buf[self.0..self.1]
+    }
+}
 
 enum RedisBufSplit {
     String(BufSplit),
@@ -139,9 +147,28 @@ fn simple_string(buf: &Vec<u8>, pos: usize) -> RedisResult {
     }
 }
 
+// fn simple_string(buf: &Vec<u8>, pos: usize) -> RedisResult {
+//     Ok(word(buf, pos).map(|(pos, word)| (pos, RedisBufSplit::String(word))))
+// }
+
 fn error(buf: &Vec<u8>, pos: usize) -> RedisResult {
     match word(buf, pos) {
         Some((pos, word)) => Ok(Some((pos, RedisBufSplit::Error(word)))),
         None => Ok(None),
     }
+}
+
+fn int(buf: &Vec<u8>, pos: usize) -> Result<Option<(usize, i64)>, RESPError> {
+    match word(buf, pos) {
+        Some((pos, word)) => {
+            let s = str::from_utf8(word.as_slice(buf)).map_err(|_| RESPError::IntParseFailure)?;
+            let i = s.parse().map_err(|_| RESPError::IntParseFailure)?;
+            Ok(Some((pos, i)))
+        }
+        None => Ok(None),
+    }
+}
+
+fn resp_int(buf: &Vec<u8>, pos: usize) -> RedisResult {
+    Ok(int(buf, pos)?.map(|(pos, int)| (pos, RedisBufSplit::Int(int))))
 }
