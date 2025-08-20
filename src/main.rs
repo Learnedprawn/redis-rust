@@ -189,3 +189,17 @@ fn bulk_string(buf: &Vec<u8>, pos: usize) -> RedisResult {
         None => Ok(None),
     }
 }
+
+fn redis_parse(buf: &Vec<u8>, pos: usize) -> RedisResult {
+    if buf.is_empty() {
+        return Ok(None);
+    }
+    match buf[pos] {
+        b'+' => simple_string(buf, pos + 1),
+        b'-' => error(buf, pos + 1),
+        b'$' => bulk_string(buf, pos + 1),
+        b':' => resp_int(buf, pos + 1),
+        // b'*' => arr(buf, pos + 1),
+        _ => Err(RESPError::UnknownStartingByte),
+    }
+}
