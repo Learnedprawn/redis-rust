@@ -73,8 +73,38 @@ fn main() {
                                 println!("Redis Parse Error: {:?}", e);
                             }
                             Ok(result_option) => match result_option {
-                                Some((pos, values)) => {
+                                Some((pos, RedisBufSplit::Array(values))) => {
                                     println!("Position: {}, Values: {:?}", pos, values);
+                                    let command = if let RedisBufSplit::String(buff) = &values[0] {
+                                        println!("Command = {:?}", buff);
+                                        buf
+                                    } else {
+                                        panic!("comand not found")
+                                    };
+                                    let argument = &values[1];
+                                    match command.as_slice(&buf) {
+                                        b"ECHO" => {
+                                            println!("ECHO was called");
+                                            // let output = encode(RedisValueRef::String(argument));
+                                            // println!("{}", output);
+                                        }
+                                        _ => println!("Something else called"),
+                                    }
+                                }
+                                Some((pos, RedisBufSplit::String(value))) => {
+                                    println!("Position: {}, Values: {:?}", pos, value);
+                                }
+                                Some((pos, RedisBufSplit::Int(value))) => {
+                                    println!("Position: {}, Values: {:?}", pos, value);
+                                }
+                                Some((pos, RedisBufSplit::Error(value))) => {
+                                    println!("Position: {}, Values: {:?}", pos, value);
+                                }
+                                Some((pos, RedisBufSplit::NullArray)) => {
+                                    println!("Position: {}  ", pos);
+                                }
+                                Some((pos, RedisBufSplit::NullBulkString)) => {
+                                    println!("Position: {}  ", pos);
                                 }
                                 None => println!("None arm matched"),
                             },
