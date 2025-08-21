@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+use memchr::memchr;
 use std::{
     io::{Read, Write},
     net::TcpListener,
@@ -23,6 +24,7 @@ pub enum RedisValueRef {
     NullBulkString,
 }
 
+#[derive(Debug)]
 pub enum RESPError {
     UnexpectedEnd,
     UnknownStartingByte,
@@ -31,6 +33,7 @@ pub enum RESPError {
     BadBulkStringSize(i64),
     BadArraySize(i64),
 }
+#[derive(Debug)]
 struct BufSplit(usize, usize);
 
 impl BufSplit {
@@ -39,6 +42,7 @@ impl BufSplit {
     }
 }
 
+#[derive(Debug)]
 enum RedisBufSplit {
     String(BufSplit),
     Error(BufSplit),
@@ -63,9 +67,24 @@ fn main() {
                         if bytes_read <= 0 {
                             return;
                         }
-                        println!("Data: {:?}", &buf[..bytes_read]);
 
-                        redis_parse(&buf, 0);
+                        match redis_parse(&buf, 0) {
+                            Err(e) => {
+                                println!("{:?}", e);
+                            }
+                            Ok(result_option) => match result_option {
+                                Some((pos, values)) => {
+                                    println!("Position: {}, Values: {:?}", pos, values);
+                                }
+                                None => println!("None arm matched"),
+                            },
+                        }
+                        // match redis_parse(&buf[..bytes_read].to_vec(), 0).unwrap() {
+                        //     Some((pos, value)) => {
+                        //         println!("value: {:?}", value);
+                        //     }
+                        //     None => println!("None"),
+                        // }
                     }
                 });
             }
@@ -151,7 +170,7 @@ fn word(buf: &Vec<u8>, pos: usize) -> Option<(usize, BufSplit)> {
     if buf.len() <= pos {
         return None;
     }
-    memchr::memchr(b'\r', &buf[pos..]).and_then(|end| {
+    memchr(b'\r', &buf[pos..]).and_then(|end| {
         if end + 1 < buf.len() {
             Some((pos + end + 2, BufSplit(pos, pos + end)))
         } else {
@@ -212,6 +231,7 @@ fn bulk_string(buf: &Vec<u8>, pos: usize) -> RedisResult {
 
 fn redis_parse(buf: &Vec<u8>, pos: usize) -> RedisResult {
     if buf.is_empty() {
+        println!("Buffer is empty");
         return Ok(None);
     }
     match buf[pos] {
@@ -242,6 +262,6 @@ fn array(buf: &Vec<u8>, pos: usize) -> RedisResult {
             }
             Ok(Some((curr_pos, RedisBufSplit::Array(values))))
         }
-        Some((pos, bad_num_elements)) => Err(RESPError::BadArraySize(bad_num_elements)),
+        Some((_pos, bad_num_elements)) => Err(RESPError::BadArraySize(bad_num_elements)),
     }
 }
