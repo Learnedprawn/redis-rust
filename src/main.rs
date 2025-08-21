@@ -40,6 +40,9 @@ impl BufSplit {
     fn as_slice<'a>(&self, buf: &'a Vec<u8>) -> &'a [u8] {
         &buf[self.0..self.1]
     }
+    fn len(&self) -> usize {
+        self.1 - self.0 + 1
+    }
 }
 
 #[derive(Debug)]
@@ -77,16 +80,23 @@ fn main() {
                                     println!("Position: {}, Values: {:?}", pos, values);
                                     let command = if let RedisBufSplit::String(buff) = &values[0] {
                                         println!("Command = {:?}", buff);
-                                        buf
+                                        buff
                                     } else {
                                         panic!("comand not found")
                                     };
+                                    // let argument = if let RedisBufSplit::String(buff) = &values[1] {
+                                    //     println!("Argument = {:?}", buff);
+                                    //     buff
+                                    // } else {
+                                    //     panic!("argument not found")
+                                    // };
                                     let argument = &values[1];
                                     match command.as_slice(&buf) {
                                         b"ECHO" => {
                                             println!("ECHO was called");
-                                            // let output = encode(RedisValueRef::String(argument));
-                                            // println!("{}", output);
+                                            let output = encode(argument, &buf);
+                                            println!("Output: {:?}", output);
+                                            stream.write_all(output.as_bytes()).unwrap();
                                         }
                                         _ => println!("Something else called"),
                                     }
@@ -123,6 +133,19 @@ fn main() {
             }
         }
     }
+}
+fn encode(value: &RedisBufSplit, buf: &Vec<u8>) -> String {
+    let converted_string = match value {
+        RedisBufSplit::String(string_value) => {
+            format!(
+                "${}\r\n{}\r\n",
+                string_value.len(),
+                String::from_utf8(string_value.as_slice(buf).to_vec()).unwrap()
+            )
+        }
+        _ => "something".to_string(),
+    };
+    converted_string
 }
 
 // pub enum RedisCommand {
