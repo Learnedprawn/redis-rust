@@ -5,7 +5,7 @@ use std::{
     thread::spawn,
 };
 
-use bytes::{Bytes, BytesMut};
+// use bytes::{Bytes, BytesMut};
 
 const CR_LEN: usize = 1;
 const LF_LEN: usize = 1;
@@ -15,8 +15,8 @@ const LD: u8 = b'\n';
 type RedisResult = Result<Option<(usize, RedisBufSplit)>, RESPError>;
 
 pub enum RedisValueRef {
-    String(Bytes),
-    Error(Bytes),
+    String(Vec<u8>),
+    Error(Vec<u8>),
     Int(i64),
     Array(Vec<RedisValueRef>),
     NullArray,
@@ -55,77 +55,97 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(mut stream) => {
-                println!("accepted new connection");
+                println!("accepted connected");
                 spawn(move || {
-                    let mut buf = [0; 64];
+                    let mut buf: Vec<u8> = vec![0u8; 64];
                     loop {
                         let bytes_read = stream.read(&mut buf).unwrap();
-                        println!("Number of Bytes: {} \n Data: {:?}", bytes_read, buf);
-                        parse_command_array(&mut buf[..bytes_read]);
-                        if bytes_read == 0 {
+                        if bytes_read <= 0 {
                             return;
                         }
-                        let echo_command = parse_command_array(&mut buf);
-                        match echo_command {
-                            RedisCommand::PING => stream.write_all(b"+PONG\r\n").unwrap(),
-                            RedisCommand::ECHO { data } => {
-                                let response_string = &data;
-                                let response_string_len = &data.len();
-                                let output =
-                                    format!("${}\r\n{}\r\n", response_string_len, response_string);
-                                stream.write_all(output.as_bytes()).unwrap();
-                            }
-                        }
+                        println!("Data: {:?}", &buf[..bytes_read]);
+
+                        redis_parse(&buf, 0);
                     }
                 });
             }
             Err(e) => {
-                println!("error: {}", e);
+                println!("{:?}", e);
             }
         }
     }
 }
 
-pub enum RedisCommand {
-    PING,
-    ECHO { data: String },
-}
-pub fn parse_command_array(buf: &mut [u8]) -> RedisCommand {
-    let mut index = 0;
-    assert!(buf[index] == b'*');
-    index += 1; //1
-    let array_length = (buf[index] - b'0') as usize;
-    if array_length == 1 {
-        return RedisCommand::PING;
-    }
-    index += 1; //2
-    index += CR_LEN + LF_LEN; //6
-    let bulk_string_symbol = buf[index];
-    assert!(bulk_string_symbol == b'$');
-    index += 1; //7
-    let command_length = (buf[index] - b'0') as usize;
-    index += 1; //8
-    index += CR_LEN + LF_LEN; //12
-    let command_string = String::from_utf8(buf[index..(index + command_length)].to_vec()).unwrap();
-    index += command_length; //16 if ECHO is the command
-    index += CR_LEN + LF_LEN; //20
-    let bulk_string_symbol = buf[index];
-    assert!(bulk_string_symbol == b'$');
-    index += 1; //21
-    let command_argument_length = (buf[index] - b'0') as usize;
-    index += 1; //8
-    index += CR_LEN + LF_LEN; //12
-    let command_argument_string =
-        String::from_utf8(buf[index..(index + command_argument_length)].to_vec()).unwrap();
-    println!("{:?}", command_argument_string);
-    // assert!(command_argument_string == "hey");
-    if command_string == "ECHO" {
-        return RedisCommand::ECHO {
-            data: command_argument_string,
-        };
-    }
-    RedisCommand::PING
-}
+// pub enum RedisCommand {
+//     PING,
+//     ECHO { data: String },
+// }
+// pub fn parse_command_array(buf: &mut [u8]) -> RedisCommand {
+//     let mut index = 0;
+//     assert!(buf[index] == b'*');
+//     index += 1; //1
+//     let array_length = (buf[index] - b'0') as usize;
+//     if array_length == 1 {
+//         return RedisCommand::PING;
+//     }
+//     index += 1; //2
+//     index += CR_LEN + LF_LEN; //6
+//     let bulk_string_symbol = buf[index];
+//     assert!(bulk_string_symbol == b'$');
+//     index += 1; //7
+//     let command_length = (buf[index] - b'0') as usize;
+//     index += 1; //8
+//     index += CR_LEN + LF_LEN; //12
+//     let command_string = String::from_utf8(buf[index..(index + command_length)].to_vec()).unwrap();
+//     index += command_length; //16 if ECHO is the command
+//     index += CR_LEN + LF_LEN; //20
+//     let bulk_string_symbol = buf[index];
+//     assert!(bulk_string_symbol == b'$');
+//     index += 1; //21
+//     let command_argument_length = (buf[index] - b'0') as usize;
+//     index += 1; //8
+//     index += CR_LEN + LF_LEN; //12
+//     let command_argument_string =
+//         String::from_utf8(buf[index..(index + command_argument_length)].to_vec()).unwrap();
+//     println!("{:?}", command_argument_string);
+//     // assert!(command_argument_string == "hey");
+//     if command_string == "ECHO" {
+//         return RedisCommand::ECHO {
+//             data: command_argument_string,
+//         };
+//     }
+//     RedisCommand::PING
+// }
+// match stream {
+//     Ok(mut stream) => {
+//         println!("accepted new connection");
+//         spawn(move || {
+//             let mut buf = [0; 64];
+//             loop {
+//                 let bytes_read = stream.read(&mut buf).unwrap();
+//                 println!("Number of Bytes: {} \n Data: {:?}", bytes_read, buf);
+//                 parse_command_array(&mut buf[..bytes_read]);
+//                 if bytes_read == 0 {
+//                     return;
+//                 }
+//                 let echo_command = parse_command_array(&mut buf);
+//                 match echo_command {
+//                     RedisCommand::PING => stream.write_all(b"+PONG\r\n").unwrap(),
+//                     RedisCommand::ECHO { data } => {
+//                         let response_string = &data;
+//                         let response_string_len = &data.len();
+//                         let output =
+//                             format!("${}\r\n{}\r\n", response_string_len, response_string);
+//                         stream.write_all(output.as_bytes()).unwrap();
+//                     }
+//                 }
+//             }
+//         });
+//     }
+//     Err(e) => {
+//         println!("error: {}", e);
+//     }
+// }
 
 fn word(buf: &Vec<u8>, pos: usize) -> Option<(usize, BufSplit)> {
     if buf.len() <= pos {
@@ -199,7 +219,29 @@ fn redis_parse(buf: &Vec<u8>, pos: usize) -> RedisResult {
         b'-' => error(buf, pos + 1),
         b'$' => bulk_string(buf, pos + 1),
         b':' => resp_int(buf, pos + 1),
-        // b'*' => arr(buf, pos + 1),
+        b'*' => array(buf, pos + 1),
         _ => Err(RESPError::UnknownStartingByte),
+    }
+}
+
+fn array(buf: &Vec<u8>, pos: usize) -> RedisResult {
+    match int(buf, pos)? {
+        None => Ok(None),
+        Some((pos, -1)) => Ok(Some((pos, RedisBufSplit::NullArray))),
+        Some((pos, num_elements)) if num_elements >= 0 => {
+            let mut values = Vec::with_capacity(num_elements as usize);
+            let mut curr_pos = pos;
+            for _ in 0..num_elements {
+                match redis_parse(buf, curr_pos)? {
+                    Some((new_pos, value)) => {
+                        curr_pos = new_pos;
+                        values.push(value);
+                    }
+                    None => return Ok(None),
+                }
+            }
+            Ok(Some((curr_pos, RedisBufSplit::Array(values))))
+        }
+        Some((pos, bad_num_elements)) => Err(RESPError::BadArraySize(bad_num_elements)),
     }
 }
