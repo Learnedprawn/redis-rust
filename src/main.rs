@@ -70,6 +70,7 @@ fn main() {
                         if bytes_read <= 0 {
                             return;
                         }
+                        println!("{:?}", String::from_utf8(buf.clone()).unwrap());
 
                         match redis_parse(&buf, 0) {
                             Err(e) => {
