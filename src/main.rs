@@ -70,7 +70,7 @@ fn main() {
 
                         match redis_parse(&buf, 0) {
                             Err(e) => {
-                                println!("{:?}", e);
+                                println!("Redis Parse Error: {:?}", e);
                             }
                             Ok(result_option) => match result_option {
                                 Some((pos, values)) => {
