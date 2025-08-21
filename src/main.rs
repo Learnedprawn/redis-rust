@@ -98,6 +98,7 @@ fn main() {
                                             println!("Output: {:?}", output);
                                             stream.write_all(output.as_bytes()).unwrap();
                                         }
+                                        b"PING" => stream.write_all(b"+PONG\r\n").unwrap(),
                                         _ => println!("Something else called"),
                                     }
                                 }
