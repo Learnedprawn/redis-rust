@@ -92,6 +92,10 @@ fn main() {
                                             let keystore_unlocked = keystore.lock().unwrap();
                                             let value =
                                                 keystore_unlocked.get(key.as_slice(&buf)).unwrap();
+                                            println!(
+                                                "{}",
+                                                String::from_utf8(value.clone()).unwrap()
+                                            );
                                             let mut response: Vec<u8> = Vec::new();
                                             response.extend_from_slice(b"$");
                                             response.extend_from_slice(
