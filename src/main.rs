@@ -1,6 +1,8 @@
 #![allow(unused_imports)]
 mod parser;
-use crate::parser::{buf_split_to_string, encode, redis_parse, RESPError, RedisBufSplit};
+use crate::parser::{
+    buf_split_to_string, encode, redis_encode, redis_parse, RESPError, RedisBufSplit, RedisValueRef,
+};
 use std::{
     collections::HashMap,
     io::{Read, Write},
@@ -27,7 +29,6 @@ fn main() {
                         if bytes_read <= 0 {
                             return;
                         }
-                        println!("{:?}", String::from_utf8(buf.clone()).unwrap());
 
                         match redis_parse(&buf, 0) {
                             Err(e) => {
@@ -35,9 +36,7 @@ fn main() {
                             }
                             Ok(result_option) => match result_option {
                                 Some((pos, RedisBufSplit::Array(values))) => {
-                                    println!("Position: {}, Values: {:?}", pos, values);
                                     let command = if let RedisBufSplit::String(buff) = &values[0] {
-                                        println!("Command = {:?}", buff);
                                         buff
                                     } else {
                                         panic!("comand not found")
@@ -48,17 +47,12 @@ fn main() {
                                             let argument = &values[1];
                                             println!("ECHO was called");
                                             let output = encode(argument, &buf);
-                                            println!("Output: {:?}", output);
                                             stream.write_all(output.as_bytes()).unwrap();
                                         }
                                         b"SET" => {
                                             let key = if let RedisBufSplit::String(inner_key) =
                                                 &values[1]
                                             {
-                                                println!(
-                                                    "Key: {:?}",
-                                                    buf_split_to_string(inner_key, &buf)
-                                                );
                                                 inner_key
                                             } else {
                                                 panic!("Key Issue")
@@ -66,69 +60,39 @@ fn main() {
                                             let value = if let RedisBufSplit::String(inner_value) =
                                                 &values[2]
                                             {
-                                                println!(
-                                                    "Value: {:?}",
-                                                    buf_split_to_string(inner_value, &buf)
-                                                );
                                                 inner_value
                                             } else {
                                                 panic!("Value Issue")
                                             };
                                             println!("SET was called");
                                             let mut keystore_unlocked = keystore.lock().unwrap();
-                                            println!(
-                                                "Hashmap before insertion: {:?}",
-                                                keystore_unlocked
-                                            );
                                             keystore_unlocked.insert(
                                                 key.as_slice(&buf).to_vec(),
                                                 value.as_slice(&buf).to_vec(),
-                                            );
-                                            println!(
-                                                "Hashmap after insertion: {:?}",
-                                                keystore_unlocked
                                             );
                                             stream.write_all(b"+OK\r\n").unwrap();
                                         }
                                         b"GET" => {
                                             let key = if let RedisBufSplit::String(key) = &values[1]
                                             {
-                                                println!(
-                                                    "Key: {:?}",
-                                                    buf_split_to_string(key, &buf)
-                                                );
                                                 key
                                             } else {
                                                 panic!("Key Issue")
                                             };
                                             println!("GET was called");
                                             let keystore_unlocked = keystore.lock().unwrap();
-                                            println!(
-                                                "Hashmap before getting: {:?}",
-                                                keystore_unlocked
-                                            );
                                             let value =
                                                 keystore_unlocked.get(key.as_slice(&buf)).unwrap();
-                                            println!(
-                                                "Hashmap after getting: {:?}",
-                                                keystore_unlocked
-                                            );
-                                            println!(
-                                                "{}",
-                                                String::from_utf8(value.clone()).unwrap()
-                                            );
-                                            let mut response: Vec<u8> = Vec::new();
-                                            response.extend_from_slice(b"$");
-                                            response.extend_from_slice(
-                                                value.len().to_string().as_bytes(),
-                                            );
-                                            response.extend_from_slice(b"\r\n");
-                                            response.extend_from_slice(&value);
-                                            response.extend_from_slice(b"\r\n");
-                                            println!(
-                                                "Output: {:?}",
-                                                String::from_utf8(response.clone()).unwrap()
-                                            );
+                                            let response =
+                                                redis_encode(RedisValueRef::String(value.clone()));
+                                            // let mut response: Vec<u8> = Vec::new();
+                                            // response.extend_from_slice(b"$");
+                                            // response.extend_from_slice(
+                                            //     value.len().to_string().as_bytes(),
+                                            // );
+                                            // response.extend_from_slice(b"\r\n");
+                                            // response.extend_from_slice(&value);
+                                            // response.extend_from_slice(b"\r\n");
                                             stream.write_all(&response).unwrap();
                                         }
                                         _ => println!("Something else called"),

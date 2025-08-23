@@ -27,7 +27,7 @@ impl BufSplit {
     pub fn as_slice<'a>(&self, buf: &'a Vec<u8>) -> &'a [u8] {
         &buf[self.0..self.1]
     }
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.1 - self.0
     }
 }
@@ -40,6 +40,20 @@ pub enum RedisBufSplit {
     Array(Vec<RedisBufSplit>),
     NullArray,
     NullBulkString,
+}
+pub fn redis_encode(value: RedisValueRef) -> Vec<u8> {
+    let mut response = Vec::new();
+    match value {
+        RedisValueRef::String(contents) => {
+            response.extend_from_slice(b"$");
+            response.extend_from_slice(contents.len().to_string().as_bytes());
+            response.extend_from_slice(b"\r\n");
+            response.extend_from_slice(&contents.as_slice());
+            response.extend_from_slice(b"\r\n");
+        }
+        _ => panic!("Only String supported for now."),
+    };
+    response
 }
 pub fn redis_buf_split_to_string(value: &RedisBufSplit, buf: &Vec<u8>) -> String {
     let string = match value {
