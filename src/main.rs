@@ -62,7 +62,7 @@ fn main() {
                                             } else {
                                                 panic!("Key Issue")
                                             };
-                                            let value =
+                                            let valuee =
                                                 if let RedisBufSplit::String(value) = &values[2] {
                                                     println!("Value: {:?}", value);
                                                     key
@@ -71,9 +71,17 @@ fn main() {
                                                 };
                                             println!("SET was called");
                                             let mut keystore_unlocked = keystore.lock().unwrap();
+                                            println!(
+                                                "Hashmap before insertion: {:?}",
+                                                keystore_unlocked
+                                            );
                                             keystore_unlocked.insert(
                                                 key.as_slice(&buf).to_vec(),
-                                                value.as_slice(&buf).to_vec(),
+                                                valuee.as_slice(&buf).to_vec(),
+                                            );
+                                            println!(
+                                                "Hashmap after insertion: {:?}",
+                                                keystore_unlocked
                                             );
                                             stream.write_all(b"+OK\r\n").unwrap();
                                         }
@@ -90,8 +98,16 @@ fn main() {
                                             };
                                             println!("GET was called");
                                             let keystore_unlocked = keystore.lock().unwrap();
+                                            println!(
+                                                "Hashmap before getting: {:?}",
+                                                keystore_unlocked
+                                            );
                                             let value =
                                                 keystore_unlocked.get(key.as_slice(&buf)).unwrap();
+                                            println!(
+                                                "Hashmap after getting: {:?}",
+                                                keystore_unlocked
+                                            );
                                             println!(
                                                 "{}",
                                                 String::from_utf8(value.clone()).unwrap()
