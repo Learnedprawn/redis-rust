@@ -80,7 +80,10 @@ fn main() {
                                         b"GET" => {
                                             let key = if let RedisBufSplit::String(key) = &values[1]
                                             {
-                                                println!("Key: {:?}", key);
+                                                println!(
+                                                    "Key: {:?}",
+                                                    buf_split_to_string(key, &buf)
+                                                );
                                                 key
                                             } else {
                                                 panic!("Key Issue")
