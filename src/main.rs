@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 mod parser;
-use crate::parser::{encode, redis_parse, RESPError, RedisBufSplit};
+use crate::parser::{buf_split_to_string, encode, redis_parse, RESPError, RedisBufSplit};
 use std::{
     collections::HashMap,
     io::{Read, Write},
@@ -54,7 +54,10 @@ fn main() {
                                         b"SET" => {
                                             let key = if let RedisBufSplit::String(key) = &values[1]
                                             {
-                                                println!("Key: {:?}", key);
+                                                println!(
+                                                    "Key: {:?}",
+                                                    buf_split_to_string(key, &buf)
+                                                );
                                                 key
                                             } else {
                                                 panic!("Key Issue")
@@ -95,11 +98,9 @@ fn main() {
                                             response.extend_from_slice(&value);
                                             response.extend_from_slice(b"\r\n");
                                             println!(
-                                                "len: {}, as_bytes_len: {:?}",
-                                                value.len(),
-                                                value.len().to_string().as_bytes()
+                                                "Output: {:?}",
+                                                String::from_utf8(response.clone()).unwrap()
                                             );
-                                            println!("Output: {:?}", response);
                                             stream.write_all(&response).unwrap();
                                         }
                                         _ => println!("Something else called"),

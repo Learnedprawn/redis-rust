@@ -41,6 +41,19 @@ pub enum RedisBufSplit {
     NullArray,
     NullBulkString,
 }
+pub fn redis_buf_split_to_string(value: &RedisBufSplit, buf: &Vec<u8>) -> String {
+    let string = match value {
+        RedisBufSplit::String(string_value) => {
+            String::from_utf8(string_value.as_slice(buf).to_vec()).unwrap()
+        }
+        _ => panic!("Not String"),
+    };
+    string
+}
+pub fn buf_split_to_string(value: &BufSplit, buf: &Vec<u8>) -> String {
+    let string = String::from_utf8(value.as_slice(buf).to_vec()).unwrap();
+    string
+}
 pub fn encode(value: &RedisBufSplit, buf: &Vec<u8>) -> String {
     let converted_string = match value {
         RedisBufSplit::String(string_value) => {
