@@ -28,7 +28,7 @@ impl BufSplit {
         &buf[self.0..self.1]
     }
     fn len(&self) -> usize {
-        self.1 - self.0 + 1
+        self.1 - self.0
     }
 }
 
