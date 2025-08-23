@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 mod parser;
-use crate::parser::{encode, redis_parse, RESPError, RedisBufSplit};
+use crate::parser::{encode, encode_string, redis_parse, RESPError, RedisBufSplit};
 use std::{
     collections::HashMap,
     io::{Read, Write},
@@ -14,9 +14,9 @@ fn main() {
 
     let mut keystore: Arc<Mutex<HashMap<Vec<u8>, Vec<u8>>>> = Arc::new(Mutex::new(HashMap::new()));
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
-    let store1 = Arc::clone(&keystore);
 
     for stream in listener.incoming() {
+        let keystore = Arc::clone(&keystore);
         match stream {
             Ok(mut stream) => {
                 println!("accepted connected");
@@ -59,7 +59,6 @@ fn main() {
                                             } else {
                                                 panic!("Key Issue")
                                             };
-                                            let value = &values[2];
                                             let value =
                                                 if let RedisBufSplit::String(value) = &values[2] {
                                                     println!("Value: {:?}", value);
@@ -68,19 +67,40 @@ fn main() {
                                                     panic!("Value Issue")
                                                 };
                                             println!("SET was called");
-                                            let mut store1_unlocked = store1.lock().unwrap();
-                                            store1_unlocked.insert(
+                                            let mut keystore_unlocked = keystore.lock().unwrap();
+                                            keystore_unlocked.insert(
                                                 key.as_slice(&buf).to_vec(),
                                                 value.as_slice(&buf).to_vec(),
                                             );
                                             stream.write_all(b"+OK\r\n").unwrap();
                                         }
                                         b"GET" => {
-                                            let key = &values[1];
+                                            let key = if let RedisBufSplit::String(key) = &values[1]
+                                            {
+                                                println!("Key: {:?}", key);
+                                                key
+                                            } else {
+                                                panic!("Key Issue")
+                                            };
                                             println!("GET was called");
-                                            let output = encode(key, &buf);
-                                            println!("Output: {:?}", output);
-                                            stream.write_all(b"+OK\r\n").unwrap();
+                                            let keystore_unlocked = keystore.lock().unwrap();
+                                            let value =
+                                                keystore_unlocked.get(key.as_slice(&buf)).unwrap();
+                                            let mut response: Vec<u8> = Vec::new();
+                                            response.extend_from_slice(b"$");
+                                            response.extend_from_slice(
+                                                value.len().to_string().as_bytes(),
+                                            );
+                                            response.extend_from_slice(b"\r\n");
+                                            response.extend_from_slice(&value);
+                                            response.extend_from_slice(b"\r\n");
+                                            println!(
+                                                "len: {}, as_bytes_len: {:?}",
+                                                value.len(),
+                                                value.len().to_string().as_bytes()
+                                            );
+                                            println!("Output: {:?}", response);
+                                            stream.write_all(&response).unwrap();
                                         }
                                         _ => println!("Something else called"),
                                     }

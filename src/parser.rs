@@ -54,6 +54,19 @@ pub fn encode(value: &RedisBufSplit, buf: &Vec<u8>) -> String {
     };
     converted_string
 }
+pub fn encode_string(value: &Vec<u8>) -> String {
+    let converted_string = match value {
+        RedisBufSplit::String(string_value) => {
+            format!(
+                "${}\r\n{}\r\n",
+                string_value.len(),
+                String::from_utf8(string_value.as_slice(buf).to_vec()).unwrap()
+            )
+        }
+        _ => "something".to_string(),
+    };
+    converted_string
+}
 
 fn word(buf: &Vec<u8>, pos: usize) -> Option<(usize, BufSplit)> {
     if buf.len() <= pos {
