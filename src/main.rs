@@ -52,23 +52,28 @@ fn main() {
                                             stream.write_all(output.as_bytes()).unwrap();
                                         }
                                         b"SET" => {
-                                            let key = if let RedisBufSplit::String(key) = &values[1]
+                                            let key = if let RedisBufSplit::String(inner_key) =
+                                                &values[1]
                                             {
                                                 println!(
                                                     "Key: {:?}",
-                                                    buf_split_to_string(key, &buf)
+                                                    buf_split_to_string(inner_key, &buf)
                                                 );
-                                                key
+                                                inner_key
                                             } else {
                                                 panic!("Key Issue")
                                             };
-                                            let valuee =
-                                                if let RedisBufSplit::String(value) = &values[2] {
-                                                    println!("Value: {:?}", value);
-                                                    key
-                                                } else {
-                                                    panic!("Value Issue")
-                                                };
+                                            let value = if let RedisBufSplit::String(inner_value) =
+                                                &values[2]
+                                            {
+                                                println!(
+                                                    "Value: {:?}",
+                                                    buf_split_to_string(inner_value, &buf)
+                                                );
+                                                inner_value
+                                            } else {
+                                                panic!("Value Issue")
+                                            };
                                             println!("SET was called");
                                             let mut keystore_unlocked = keystore.lock().unwrap();
                                             println!(
@@ -77,7 +82,7 @@ fn main() {
                                             );
                                             keystore_unlocked.insert(
                                                 key.as_slice(&buf).to_vec(),
-                                                valuee.as_slice(&buf).to_vec(),
+                                                value.as_slice(&buf).to_vec(),
                                             );
                                             println!(
                                                 "Hashmap after insertion: {:?}",
