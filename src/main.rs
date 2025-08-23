@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 mod parser;
-use crate::parser::{encode, encode_string, redis_parse, RESPError, RedisBufSplit};
+use crate::parser::{encode, redis_parse, RESPError, RedisBufSplit};
 use std::{
     collections::HashMap,
     io::{Read, Write},
@@ -119,6 +119,6 @@ fn main() {
     }
 }
 
-pub fn new_entry_in_hashmap(key: &RedisBufSplit, value: &RedisBufSplit) -> Result<(), ()> {
-    Ok(())
-}
+// pub fn new_entry_in_hashmap(key: &RedisBufSplit, value: &RedisBufSplit) -> Result<(), ()> {
+//     Ok(())
+// }
