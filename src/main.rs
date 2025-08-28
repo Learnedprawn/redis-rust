@@ -14,7 +14,7 @@ use std::{
 fn main() {
     println!("Logs from your program will appear here!");
 
-    let mut keystore: Arc<Mutex<HashMap<Vec<u8>, Vec<u8>>>> = Arc::new(Mutex::new(HashMap::new()));
+    let keystore: Arc<Mutex<HashMap<Vec<u8>, Vec<u8>>>> = Arc::new(Mutex::new(HashMap::new()));
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
 
     for stream in listener.incoming() {
@@ -35,7 +35,7 @@ fn main() {
                                 println!("Redis Parse Error: {:?}", e);
                             }
                             Ok(result_option) => match result_option {
-                                Some((pos, RedisBufSplit::Array(values))) => {
+                                Some((_pos, RedisBufSplit::Array(values))) => {
                                     let command = if let RedisBufSplit::String(buff) = &values[0] {
                                         buff
                                     } else {
@@ -112,6 +112,21 @@ fn main() {
     }
 }
 
-// pub fn new_entry_in_hashmap(key: &RedisBufSplit, value: &RedisBufSplit) -> Result<(), ()> {
-//     Ok(())
-// }
+pub fn match_command(buf: &Vec<u8>) {
+    match redis_parse(buf, 0) {
+        Err(e) => {
+            println!("Error Parsing: {:?}", e);
+        }
+        Ok(command_option) => match command_option {
+            Some((_pos, RedisBufSplit::Array(argument_array))) => {
+                let command = if let RedisBufSplit::String(buf) = &argument_array[0] {
+                    buf
+                } else {
+                    panic!("Command not found")
+                };
+            }
+            None => println!("None command matched"),
+            _ => println!("Something other than an array was passed in"),
+        },
+    }
+}
