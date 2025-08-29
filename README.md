@@ -20,7 +20,7 @@ git commit -am "pass 1st stage" # any msg
 git push origin master
 ```
 
-That's all!
+That's all!!
 
 # Stage 2 & beyond
 
